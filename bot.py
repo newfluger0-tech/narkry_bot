@@ -1,5 +1,6 @@
 import asyncio
 import sqlite3
+import os
 from datetime import datetime
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
@@ -758,7 +759,7 @@ def health():
     return "✅ NARKRY BOT IS RUNNING!", 200
 
 def run_flask():
-    flask_app.run(host='0.0.0.0', port=8080)
+    flask_app.run(host='0.0.0.0', port=10000)
 
 # ========== ЗАПУСК ==========
 async def main():
