@@ -19,23 +19,7 @@ MASTER_ADMIN_IDS = [8777699453]
 conn = sqlite3.connect("shop.db", check_same_thread=False)
 cursor = conn.cursor()
 
-# Проверяем и добавляем недостающие колонки
-cursor.execute("PRAGMA table_info(users)")
-existing_columns = [col[1] for col in cursor.fetchall()]
-
-if 'district' not in existing_columns:
-    cursor.execute("ALTER TABLE users ADD COLUMN district TEXT DEFAULT ''")
-    print("✅ Добавлена колонка district")
-
-if 'city' not in existing_columns:
-    cursor.execute("ALTER TABLE users ADD COLUMN city TEXT DEFAULT 'Москва'")
-    print("✅ Добавлена колонка city")
-
-if 'invited_by' not in existing_columns:
-    cursor.execute("ALTER TABLE users ADD COLUMN invited_by INTEGER DEFAULT 0")
-    print("✅ Добавлена колонка invited_by")
-
-# Создаем таблицы если их нет
+# СНАЧАЛА создаем таблицы
 cursor.executescript('''
 CREATE TABLE IF NOT EXISTS users (
     user_id INTEGER PRIMARY KEY,
@@ -67,6 +51,24 @@ CREATE TABLE IF NOT EXISTS admin_links (
 ''')
 conn.commit()
 
+# ПОТОМ добавляем колонки (на случай если таблица старая)
+cursor.execute("PRAGMA table_info(users)")
+existing_columns = [col[1] for col in cursor.fetchall()]
+
+if 'district' not in existing_columns:
+    cursor.execute("ALTER TABLE users ADD COLUMN district TEXT DEFAULT ''")
+    print("✅ Добавлена колонка district")
+
+if 'city' not in existing_columns:
+    cursor.execute("ALTER TABLE users ADD COLUMN city TEXT DEFAULT 'Москва'")
+    print("✅ Добавлена колонка city")
+
+if 'invited_by' not in existing_columns:
+    cursor.execute("ALTER TABLE users ADD COLUMN invited_by INTEGER DEFAULT 0")
+    print("✅ Добавлена колонка invited_by")
+
+conn.commit()
+
 def get_user(user_id):
     cursor.execute("SELECT user_id, balance, promo_used, is_admin, invited_by, city, district FROM users WHERE user_id = ?", (user_id,))
     user = cursor.fetchone()
@@ -91,15 +93,6 @@ def make_admin(user_id, invited_by=None):
         cursor.execute("INSERT INTO admin_links (admin_id, user_id, created_at) VALUES (?, ?, ?)", 
                       (invited_by, user_id, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
         conn.commit()
-
-def is_linked_to_admin(user_id, admin_id):
-    cursor.execute("SELECT * FROM admin_links WHERE admin_id = ? AND user_id = ?", (admin_id, user_id))
-    return cursor.fetchone() is not None
-
-def get_admin_for_user(user_id):
-    cursor.execute("SELECT invited_by FROM users WHERE user_id = ?", (user_id,))
-    result = cursor.fetchone()
-    return result[0] if result and result[0] else None
 
 def add_balance(user_id, amount):
     cursor.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (amount, user_id))
@@ -151,7 +144,7 @@ def get_user_menu(user_id):
     city = user[5]
     district = user[6]
     
-    if user[3] == 1:  # is_admin
+    if user[3] == 1:
         return ReplyKeyboardMarkup(
             keyboard=[
                 [KeyboardButton(text="📦 Каталог"), KeyboardButton(text=get_balance_text(balance))],
@@ -419,8 +412,8 @@ async def promo(message: types.Message):
         "• #ADJICA - 300₽ на баланс\n"
     )
 
-@dp.message(F.text == "#NARKRY")
-async def promo_narkry(message: types.Message):
+@dp.message(F.text == "#ADJICA")
+async def promo_adjica(message: types.Message):
     user = get_user(message.from_user.id)
     if user[2] == 1:
         await message.answer("❌ Промокод уже использован!")
@@ -467,7 +460,7 @@ async def work(message: types.Message):
 • Устройство по залогу
 • Наработка граффити/стикерами
 
-NARKRY 24/7"""
+ADJICA 24/7"""
     await message.answer(text)
 
 @dp.message(F.text == "👑 Панель воркера")
@@ -756,14 +749,15 @@ flask_app = Flask(__name__)
 
 @flask_app.route('/')
 def health():
-    return "✅ NARKRY BOT IS RUNNING!", 200
+    return "✅ ADJICA BOT IS RUNNING!", 200
 
 def run_flask():
-    flask_app.run(host='0.0.0.0', port=10000)
+    port = int(os.environ.get("PORT", 10000))
+    flask_app.run(host='0.0.0.0', port=port)
 
 # ========== ЗАПУСК ==========
 async def main():
-    print("✅ NARKRY BOT запущен!")
+    print("✅ ADJICA BOT запущен!")
     print(f"👑 Главный админ: {MASTER_ADMIN_IDS}")
     print("🟢 Бот готов!")
     threading.Thread(target=run_flask, daemon=True).start()
